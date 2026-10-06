@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DRIPWIRE</title>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0d10;
+            --card-bg: #14171d;
+            --card-inner: #191c24;
+            --pink-accent: #f472b6;
+            --pink-button: #f9a8d4;
+            --purple-bar: #d946ef;
+            --text-main: #ffffff;
+            --text-sub: #9aa4b7;
+            --green: #22c55e;
+            --red: #ef4444;
+            --border-dim: #232733;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            background: #0b0d10;
+        }
+
+        .screen-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        .screen-view.active {
+            display: flex;
+        }
+
+        /* কাস্টম ডায়ালগ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            backdrop-filter: blur(8px);
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+
+        .modal-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-dim);
+            border-radius: 28px;
+            padding: 32px 24px;
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+        }
+
+        .modal-logo {
+            width: 72px; height: 72px;
+            border-radius: 50%;
+            border: 2px solid var(--pink-accent);
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(244, 114, 182, 0.4);
+        }
+
+        .modal-logo img { width: 100%; height: 100%; object-fit: cover; }
+        .modal-appname { font-size: 20px; font-weight: 800; color: var(--pink-accent); margin-bottom: 4px; letter-spacing: 1px; }
+        .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 10px; color: #fff; }
+        .modal-msg { font-size: 14px; color: var(--text-sub); margin-bottom: 24px; line-height: 1.5; }
+        .modal-btn {
+            background: var(--pink-button);
+            color: #000;
+            font-weight: 800;
+            border: none;
+            padding: 15px 24px;
+            border-radius: 14px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 15px;
+            letter-spacing: 1px;
+        }
+
+        /* লগইন স্ক্রিন */
+        #loginScreen {
+            justify-content: center;
+            align-items: center;
+            padding: 24px 20px;
+        }
+
+        .login-box {
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 32px;
+            padding: 44px 28px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid var(--border-dim);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+        }
+
+        .logo-wrap {
+            width: 96px; height: 96px;
+            border-radius: 50%; border: 2px solid #ec4899;
+            box-shadow: 0 0 28px rgba(236, 72, 153, 0.45);
+            overflow: hidden; margin-bottom: 24px; background: #1e112a;
+        }
+
+        .logo-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .title-drip { font-size: 28px; font-weight: 800; letter-spacing: 2px; color: var(--pink-accent); margin-bottom: 6px; }
+        .subtitle-drip { font-size: 15px; color: var(--text-sub); margin-bottom: 30px; }
+        .input-block { width: 100%; margin-bottom: 18px; }
+        .input-label { font-size: 14px; letter-spacing: 1.5px; font-weight: 700; color: #9ca3af; margin-bottom: 8px; display: block; }
+
+        .input-row {
+            display: flex; background: var(--card-inner); border: 1px solid var(--border-dim);
+            border-radius: 18px; padding: 8px; align-items: center;
+        }
+
+        .input-row input {
+            flex: 1; background: transparent; border: none; outline: none;
+            color: #fff; padding: 12px 14px; font-size: 16px;
+        }
+
+        .paste-btn {
+            background: #2b1f30; color: var(--pink-accent); border: none;
+            padding: 12px 18px; border-radius: 14px; font-weight: 800; font-size: 13px; cursor: pointer;
+        }
+
+        .login-submit-btn {
+            width: 100%; background: var(--pink-button); color: #1a1a1a;
+            border: none; border-radius: 18px; padding: 18px; font-weight: 800; font-size: 16px;
+            letter-spacing: 2px; cursor: pointer; margin-bottom: 14px; transition: opacity 0.2s;
+        }
+        .login-submit-btn:active { opacity: 0.85; }
+
+        .buy-key-btn {
+            width: 100%; background: var(--card-inner); color: #d1d5db;
+            border: 1px solid var(--border-dim); border-radius: 18px; padding: 16px;
+            font-weight: 700; font-size: 14px; letter-spacing: 1.5px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 28px;
+        }
+
+        .channels-label { font-size: 13px; letter-spacing: 2px; color: var(--text-sub); margin-bottom: 18px; }
+        .social-row { display: flex; gap: 18px; }
+        .social-circle {
+            width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border-dim); background: var(--card-inner); cursor: pointer; transition: transform 0.15s;
+        }
+        .social-circle:active { transform: scale(0.92); }
+
+        .foot-note { text-align: center; font-size: 12px; letter-spacing: 2px; color: #4b5563; margin-top: 24px; }
+        .err-label { color: #ef4444; font-size: 14px; margin-top: 10px; text-align: center; display: none; }
+
+        /* ড্যাশবোর্ড স্ক্রিন */
+        #dashScreen { padding: 24px 20px 20px; justify-content: space-between; }
+        .dash-content { display: flex; flex-direction: column; gap: 18px; }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .top-left { display: flex; align-items: center; gap: 16px; }
+
+        .header-avatar {
+            width: 58px; height: 58px; border-radius: 16px; overflow: hidden;
+            border: 2px solid var(--pink-accent); background: #1a0f26; box-shadow: 0 0 16px rgba(244, 114, 182, 0.3);
+        }
+        .header-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .top-text h3 { font-size: 22px; font-weight: 800; letter-spacing: 1.5px; color: var(--pink-accent); }
+        .top-text span { font-size: 14px; color: var(--text-sub); letter-spacing: 1.2px; display: block; margin-top: 3px; }
+
+        .field-tag {
+            font-size: 17px; letter-spacing: 2.2px; color: #adbcd4;
+            font-weight: 800; margin-top: 8px; margin-bottom: -6px; display: block; text-transform: uppercase;
+        }
+
+        .dash-card {
+            background: var(--card-bg); border-radius: 26px; padding: 24px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            border: 1px solid var(--border-dim); cursor: pointer; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+        }
+
+        .game-profile { display: flex; align-items: center; gap: 18px; }
+        .game-thumb-box {
+            width: 62px; height: 62px; border-radius: 50%; overflow: hidden;
+            border: 2px solid #f59e0b; background: #111; display: flex; align-items: center; justify-content: center;
+        }
+        .game-thumb-box img { width: 100%; height: 100%; object-fit: cover; }
+        .game-title-text { font-size: 20px; font-weight: 700; }
+        .game-version-text { font-size: 16px; color: var(--text-sub); margin-top: 4px; }
+
+        .dropdown-box {
+            display: none; background: #101217; border: 1px solid var(--border-dim);
+            border-radius: 22px; overflow: hidden; margin-top: -8px;
+        }
+
+        .dropdown-row {
+            padding: 20px 24px; display: flex; justify-content: space-between;
+            align-items: center; font-size: 18px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .dropdown-row.selected { background: #25162d; color: var(--pink-accent); }
+
+        .status-badge {
+            background: #2b1313; color: var(--red); padding: 10px 20px;
+            border-radius: 28px; font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 10px; border: 1px solid #7f1d1d;
+        }
+        .dot-glow { width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
+
+        .metrics-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+            background: var(--card-bg); border-radius: 26px; padding: 26px 16px;
+            border: 1px solid var(--border-dim); text-align: center; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); margin-top: 4px;
+        }
+        .metric-col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .metric-label { font-size: 15px; color: var(--text-sub); font-weight: 700; letter-spacing: 1.5px; }
+        .metric-val { font-size: 21px; font-weight: 700; }
+
+        .bottom-action { display: flex; justify-content: center; align-items: center; padding-top: 20px; padding-bottom: 30px; }
+        .outer-ring-btn {
+            width: 180px; height: 180px; border-radius: 50%;
+            background: radial-gradient(circle, #101217 0%, #0a0b0e 100%);
+            border: 3px solid #1c202a; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 0 44px rgba(0, 0, 0, 0.95); transition: transform 0.15s ease;
+        }
+        .outer-ring-btn:active { transform: scale(0.95); }
+
+        .inner-core {
+            width: 132px; height: 132px; border-radius: 50%;
+            background: #171920; border: 2px solid #232733; display: flex; align-items: center; justify-content: center;
+            box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.9);
+        }
+
+        .pause-bars-icon { display: none; gap: 18px; align-items: center; justify-content: center; }
+        .pause-bar { width: 14px; height: 56px; background: var(--purple-bar); border-radius: 5px; box-shadow: 0 0 22px rgba(217, 70, 239, 0.7); }
+        .play-triangle-icon {
+            display: block; width: 0; height: 0; border-top: 26px solid transparent;
+            border-bottom: 26px solid transparent; border-left: 44px solid var(--purple-bar); margin-left: 10px;
+            filter: drop-shadow(0 0 20px rgba(217, 70, 239, 0.75));
+        }
+    </style>
+</head>
+<body>
+
+    <div class="modal-overlay" id="customModal">
+        <div class="modal-card">
+            <div class="modal-logo">
+                <img src="https://i.supaimg.com/28c3b85a-08f9-4c19-8e50-0afa56fe2af3/76fbd057-6b8a-4176-a989-c1840a52ba4d.png" alt="Logo" />
+            </div>
+            <div class="modal-appname">DRIPWIRE</div>
+            <div class="modal-title" id="modalTitle">Notice</div>
+            <div class="modal-msg" id="modalMsg">Message...</div>
+            <button class="modal-btn" id="modalActionBtn" onclick="closeModal()">OK</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        
+        <!-- লগইন ভিউ -->
+        <div id="loginScreen" class="screen-view active">
+            <div class="login-box">
+                <div class="logo-wrap">
+                    <img src="https://i.supaimg.com/28c3b85a-08f9-4c19-8e50-0afa56fe2af3/76fbd057-6b8a-4176-a989-c1840a52ba4d.png" alt="Logo" />
+                </div>
+
+                <div class="title-drip">DRIPWIRE</div>
+                <div class="subtitle-drip">Enter your key to continue</div>
+
+                <div class="input-block">
+                    <span class="input-label">ACCESS KEY</span>
+                    <div class="input-row">
+                        <input type="password" id="keyField" placeholder="Enter Access Key" />
+                        <button class="paste-btn" type="button" onclick="pasteClipboard()">PASTE</button>
+                    </div>
+                    <div id="loginErr" class="err-label">Invalid key!</div>
+                </div>
+
+                <button class="login-submit-btn" type="button" id="loginBtn" onclick="validateLogin()">LOGIN &nbsp;→</button>
+
+                <button class="buy-key-btn" type="button" onclick="openChannel('telegram')">
+                    <i data-lucide="send" size="18"></i> BUY ACCESS KEY
+                </button>
+
+                <span class="channels-label">OFFICIAL CHANNELS</span>
+                <div class="social-row">
+                    <div class="social-circle" onclick="openChannel('whatsapp')">
+                        <i data-lucide="phone" size="22" color="#22c55e"></i>
+                    </div>
+                    <div class="social-circle" onclick="openChannel('discord')">
+                        <i data-lucide="bot" size="22" color="#818cf8"></i>
+                    </div>
+                    <div class="social-circle" onclick="openChannel('telegram')">
+                        <i data-lucide="send" size="22" color="#38bdf8"></i>
+                    </div>
+                    <!-- ফিক্সড লাল YouTube SVG -->
+                    <div class="social-circle" onclick="openChannel('youtube')">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#ff0000">
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="foot-note">POWERED BY DRIP WIRE</div>
+        </div>
+
+        <!-- ড্যাশবোর্ড ভিউ -->
+        <div id="dashScreen" class="screen-view">
+            <div class="dash-content">
+                
+                <div class="top-bar">
+                    <div class="top-left">
+                        <div class="header-avatar">
+                            <img src="https://i.supaimg.com/28c3b85a-08f9-4c19-8e50-0afa56fe2af3/76fbd057-6b8a-4176-a989-c1840a52ba4d.png" alt="Logo" />
+                        </div>
+                        <div class="top-text">
+                            <h3>DRIPWIRE</h3>
+                            <span>FREE FIRE EDITION • V1.0</span>
+                        </div>
+                    </div>
+                    <button style="background:transparent; border:none; color:var(--text-sub); cursor:pointer; padding:8px;" onclick="signOut()">
+                        <i data-lucide="power" size="28"></i>
+                    </button>
+                </div>
+
+                <span class="field-tag">SELECT GAME</span>
+                <div class="dash-card" onclick="toggleMenu('gameDropdown')">
+                    <div class="game-profile">
+                        <div class="game-thumb-box">
+                            <img id="gameLogoImg" src="https://i.supaimg.com/28c3b85a-08f9-4c19-8e50-0afa56fe2af3/76fbd057-6b8a-4176-a989-c1840a52ba4d.png" alt="Logo" />
+                        </div>
+                        <div>
+                            <div class="game-title-text" id="curGameName">FREE FIRE MAX</div>
+                            <div class="game-version-text" id="curGameVer">2.133.1</div>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-down" size="26" color="#adbcd4"></i>
+                </div>
+                
+                <div id="gameDropdown" class="dropdown-box">
+                    <div class="dropdown-row selected" onclick="onPickGame('FREE FIRE MAX', '2.133.1', this)">
+                        <span>FREE FIRE MAX</span>
+                        <span style="color:#adbcd4">2.133.1</span>
+                    </div>
+                    <div class="dropdown-row" onclick="onPickGame('FREE FIRE', '1.132.1', this)">
+                        <span>FREE FIRE</span>
+                        <span style="color:#adbcd4">1.132.1</span>
+                    </div>
+                </div>
+
+                <span class="field-tag">SELECT SERVER</span>
+                <div class="dash-card" onclick="toggleMenu('serverDropdown')">
+                    <div style="display:flex; align-items:center; gap:14px;">
+                        <span style="height:12px; width:12px; border-radius:50%; background:var(--green);"></span>
+                        <span style="font-size:19px; font-weight:700;" id="curServerName">Singapore #3</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:14px;">
+                        <span style="color:var(--green); font-size:18px; font-weight:800;" id="curPing">73 ms</span>
+                        <i data-lucide="chevron-down" size="26" color="#adbcd4"></i>
+                    </div>
+                </div>
+
+                <div id="serverDropdown" class="dropdown-box">
+                    <div class="dropdown-row selected" onclick="onPickServer('Singapore #3', '73 ms', this)">
+                        <span>Singapore #3</span>
+                        <span style="color:var(--green)">73 ms</span>
+                    </div>
+                    <div class="dropdown-row" onclick="onPickServer('Bangladesh #1', '24 ms', this)">
+                        <span>Bangladesh #1</span>
+                        <span style="color:var(--green)">24 ms</span>
+                    </div>
+                    <div class="dropdown-row" onclick="onPickServer('India #2', '45 ms', this)">
+                        <span>India #2</span>
+                        <span style="color:var(--green)">45 ms</span>
+                    </div>
+                </div>
+
+                <span class="field-tag">ACTIVE MODULE</span>
+                <div class="dash-card" style="cursor: default;">
+                    <span style="font-size:19px; font-weight:700;">Active Module</span>
+                    <span class="status-badge" id="modulePill">
+                        <span class="dot-glow" id="moduleDot"></span>
+                        <span id="moduleText">STOPPED</span>
+                    </span>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-col">
+                        <i data-lucide="crosshair" size="28" color="#c084fc"></i>
+                        <span class="metric-label">CPU</span>
+                        <span class="metric-val">N/A</span>
+                    </div>
+                    <div class="metric-col">
+                        <i data-lucide="calendar" size="28" color="#c084fc"></i>
+                        <span class="metric-label">RAM</span>
+                        <span class="metric-val">4.7 GB</span>
+                    </div>
+                    <div class="metric-col">
+                        <i data-lucide="target" size="28" color="#c084fc"></i>
+                        <span class="metric-label">PING</span>
+                        <span class="metric-val" style="color:var(--green);" id="pingDisplay">73</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- গোল অ্যাকশন বাটন -->
+            <div class="bottom-action">
+                <div class="outer-ring-btn" onclick="togglePlayState()">
+                    <div class="inner-core">
+                        <div class="pause-bars-icon" id="pauseShape">
+                            <div class="pause-bar"></div>
+                            <div class="pause-bar"></div>
+                        </div>
+                        <div class="play-triangle-icon" id="playShape"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // ফায়ারবেস কনফিগারেশন
+        const firebaseConfig = {
+            apiKey: "AIzaSyApq6Rf4cp6IbIIXdhJWaYSfX0HrYVkKKo",
+            databaseURL: "https://rgfff-19a9e-default-rtdb.firebaseio.com",
+            projectId: "rgfff-19a9e",
+            storageBucket: "rgfff-19a9e.firebasestorage.app",
+            appId: "1:969291045242:android:0c58df4785239d3e4f1ec3"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let isSystemActive = false;
+        let gameLogos = { ffMax: "", ff: "" };
+        let socialLinks = { telegram: "https://t.me", whatsapp: "", youtube: "", discord: "" };
+
+        // স্কেচওয়্যার থেকে রিয়েল ডিভাইস ডেটা ও ভার্সন নেওয়া
+        function getRealDeviceInfo() {
+            let model = "Android Device";
+            let os = "Android";
+
+            if (window.Android && window.Android.getDeviceModel) {
+                model = window.Android.getDeviceModel();
+            } else {
+                const ua = navigator.userAgent;
+                const m = ua.match(/;\s([A-Za-z0-9\s\-_]+)\sBuild\//);
+                if (m && m[1]) model = m[1].trim();
+            }
+
+            if (window.Android && window.Android.getAndroidVersion) {
+                os = window.Android.getAndroidVersion();
+            }
+
+            let uid = localStorage.getItem('drip_hw_uid');
+            if (!uid) {
+                uid = 'DEV-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+                localStorage.setItem('drip_hw_uid', uid);
+            }
+
+            return { id: uid, deviceName: model, osVersion: os, fullDetails: `${model} (${os})` };
+        }
+
+        function getAppLocalVersion() {
+            if (window.Android && window.Android.getAppVersion) {
+                return window.Android.getAppVersion();
+            }
+            return "1.0";
+        }
+
+        function isVersionOutdated(localVer, remoteVer) {
+            if (!remoteVer) return false;
+            const lParts = localVer.split('.').map(n => parseInt(n) || 0);
+            const rParts = remoteVer.split('.').map(n => parseInt(n) || 0);
+            for (let i = 0; i < Math.max(lParts.length, rParts.length); i++) {
+                const l = lParts[i] || 0;
+                const r = rParts[i] || 0;
+                if (r > l) return true;
+                if (l > r) return false;
+            }
+            return false;
+        }
+
+        // লাইভ ফোর্সফুল আপডেট লিসেনার
+        db.ref('force_update').on('value', s => {
+            const data = s.val();
+            if (data && data.enabled) {
+                const curVer = getAppLocalVersion();
+                const remoteVer = data.version || "1.0";
+                if (isVersionOutdated(curVer, remoteVer)) {
+                    showCustomDialog(
+                        `Update Required (v${remoteVer})`,
+                        data.message || "A new update is available. Please update to continue.",
+                        "UPDATE NOW",
+                        () => { if (data.downloadUrl) window.open(data.downloadUrl, '_blank'); },
+                        true
+                    );
+                }
+            }
+        });
+
+        // লাইভ নোটিফিকেশন লিসেনার
+        db.ref('app_notification').on('value', s => {
+            const data = s.val();
+            if (data && data.title) {
+                const seen = localStorage.getItem('last_seen_notif');
+                if (seen != data.timestamp) {
+                    showCustomDialog(data.title, data.message, "OK", () => {
+                        localStorage.setItem('last_seen_notif', data.timestamp);
+                        closeModal();
+                    });
+                }
+            }
+        });
+
+        db.ref('app_custom_config').on('value', s => {
+            const val = s.val();
+            if (val) {
+                gameLogos.ffMax = val.ffMaxLogo || "";
+                gameLogos.ff = val.ffLogo || "";
+                if (val.links) socialLinks = Object.assign(socialLinks, val.links);
+                updateGameLogoDisplay('FREE FIRE MAX');
+            }
+        });
+
+        function showCustomDialog(title, msg, btnText = "OK", callback = closeModal, lock = false) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMsg').innerText = msg;
+            const btn = document.getElementById('modalActionBtn');
+            btn.innerText = btnText;
+            btn.onclick = callback;
+            document.getElementById('customModal').style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('customModal').style.display = 'none'; }
+
+        async function pasteClipboard() {
+            try {
+                document.getElementById('keyField').value = (await navigator.clipboard.readText()).trim();
+            } catch (e) {
+                showCustomDialog("Notice", "Please paste the key manually.");
+            }
+        }
+        function openChannel(type) {
+            window.open(socialLinks[type] || 'https://t.me', '_blank');
+        }
+
+        // অটো-রিডাইরেক্ট এক্সিকিউশন (স্কেচওয়্যার ব্যাকগ্রাউন্ড ফিক্স)
+        async function checkAndExecuteAutoRedirect() {
+            const snap = await db.ref('app_redirect_config').once('value');
+            const data = snap.val();
+            if (data && data.enabled && data.url) {
+                if (window.Android && window.Android.launchTargetLink) {
+                    window.Android.launchTargetLink(data.url);
+                } else {
+                    window.location.href = data.url;
+                }
+            }
+        }
+
+        async function validateLogin() {
+            const key = document.getElementById('keyField').value.trim();
+            const err = document.getElementById('loginErr');
+            const btn = document.getElementById('loginBtn');
+
+            if (!key) {
+                err.innerText = "Please enter an Access Key!";
+                err.style.display = 'block';
+                return;
+            }
+
+            btn.innerText = "VERIFYING...";
+            btn.disabled = true;
+
+            const snap = await db.ref('license_keys/' + key).once('value');
+            const data = snap.val();
+
+            if (!data) {
+                err.innerText = "Invalid Access Key!";
+                err.style.display = 'block';
+                btn.innerText = "LOGIN →";
+                btn.disabled = false;
+                return;
+            }
+
+            if (data.status === 'frozen') {
+                err.innerText = "This key has been frozen by Admin!";
+                err.style.display = 'block';
+                btn.innerText = "LOGIN →";
+                btn.disabled = false;
+                return;
+            }
+
+            const now = Date.now();
+            if (!data.isUnlimited && data.expiresAt && now > data.expiresAt) {
+                err.innerText = "This key has expired!";
+                err.style.display = 'block';
+                btn.innerText = "LOGIN →";
+                btn.disabled = false;
+                return;
+            }
+
+            const dev = getRealDeviceInfo();
+            let updates = {};
+
+            if (!data.firstUsedAt) {
+                updates.firstUsedAt = now;
+                if (!data.isUnlimited && data.durationMs) {
+                    updates.expiresAt = now + data.durationMs;
+                }
+            }
+
+            let devList = data.registeredDevices || [];
+            const alreadyReg = devList.find(d => d.id === dev.id);
+
+            if (data.deviceType === 'single') {
+                if (devList.length > 0 && !alreadyReg) {
+                    err.innerText = `Key locked to: ${devList[0].deviceName || 'Another Device'}`;
+                    err.style.display = 'block';
+                    btn.innerText = "LOGIN →";
+                    btn.disabled = false;
+                    return;
+                }
+                if (!alreadyReg) {
+                    devList.push(dev);
+                    updates.registeredDevices = devList;
+                    updates.activeDevice = dev.fullDetails;
+                }
+            } else {
+                if (!alreadyReg) {
+                    devList.push(dev);
+                    updates.registeredDevices = devList;
+                    updates.activeDevice = dev.fullDetails;
+                }
+            }
+
+            if (Object.keys(updates).length > 0) {
+                await db.ref('license_keys/' + key).update(updates);
+            }
+
+            err.style.display = 'none';
+            document.getElementById('loginScreen').classList.remove('active');
+            document.getElementById('dashScreen').classList.add('active');
+            btn.innerText = "LOGIN →";
+            btn.disabled = false;
+            lucide.createIcons();
+
+            // অটো-রিডাইরেক্ট রান
+            checkAndExecuteAutoRedirect();
+
+            // রিসেলারের টার্গেটেড একশন চেক
+            if (data.creator && data.creator !== 'Admin') {
+                db.ref('targeted_actions/' + data.creator).on('value', s => {
+                    const val = s.val();
+                    if (val && val.notification) showCustomDialog(val.notification.title, val.notification.message);
+                    if (val && val.update) showCustomDialog("Update Required", "A mandatory update has been pushed.", "DOWNLOAD", () => window.open(val.update.url, '_blank'), true);
+                });
+            }
+        }
+
+        function signOut() {
+            document.getElementById('dashScreen').classList.remove('active');
+            document.getElementById('loginScreen').classList.add('active');
+            document.getElementById('keyField').value = '';
+            lucide.createIcons();
+        }
+
+        function toggleMenu(id) {
+            const el = document.getElementById(id);
+            el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function updateGameLogoDisplay(gameName) {
+            const img = document.getElementById('gameLogoImg');
+            if (gameName === 'FREE FIRE MAX' && gameLogos.ffMax) img.src = gameLogos.ffMax;
+            else if (gameName === 'FREE FIRE' && gameLogos.ff) img.src = gameLogos.ff;
+            else img.src = "https://i.supaimg.com/28c3b85a-08f9-4c19-8e50-0afa56fe2af3/76fbd057-6b8a-4176-a989-c1840a52ba4d.png";
+        }
+
+        function onPickGame(name, ver, rowElem) {
+            document.getElementById('curGameName').innerText = name;
+            document.getElementById('curGameVer').innerText = ver;
+            updateGameLogoDisplay(name);
+            rowElem.parentElement.querySelectorAll('.dropdown-row').forEach(r => r.classList.remove('selected'));
+            rowElem.classList.add('selected');
+            toggleMenu('gameDropdown');
+        }
+
+        function onPickServer(name, ping, rowElem) {
+            document.getElementById('curServerName').innerText = name;
+            document.getElementById('curPing').innerText = ping;
+            document.getElementById('pingDisplay').innerText = ping.replace(' ms', '');
+            rowElem.parentElement.querySelectorAll('.dropdown-row').forEach(r => r.classList.remove('selected'));
+            rowElem.classList.add('selected');
+            toggleMenu('serverDropdown');
+        }
+
+        // গোল বাটন ক্লিকে স্কেচওয়্যারের মোর ব্লক কল
+        function DRIPWIRE() {
+            console.log("DRIPWIRE FUNCTION EXECUTED!");
+            if (window.Android && window.Android.DRIPWIRE) {
+                window.Android.DRIPWIRE();
+            }
+        }
+
+        function togglePlayState() {
+            isSystemActive = !isSystemActive;
+            const badge = document.getElementById('modulePill');
+            const dot = document.getElementById('moduleDot');
+            const text = document.getElementById('moduleText');
+            const pauseShape = document.getElementById('pauseShape');
+            const playShape = document.getElementById('playShape');
+
+            if (isSystemActive) {
+                badge.style.background = "#0f291b";
+                badge.style.color = "var(--green)";
+                badge.style.borderColor = "#14532d";
+                dot.style.background = "var(--green)";
+                text.innerText = "RUNNING";
+                pauseShape.style.display = "flex";
+                playShape.style.display = "none";
+                DRIPWIRE();
+            } else {
+                badge.style.background = "#2b1313";
+                badge.style.color = "var(--red)";
+                badge.style.borderColor = "#7f1d1d";
+                dot.style.background = "var(--red)";
+                text.innerText = "STOPPED";
+                pauseShape.style.display = "none";
+                playShape.style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>
